@@ -21,4 +21,27 @@
     @test isa(response_qp, HTTP.Messages.Response)
     @test response_qp.request.headers[1][1] == "user-agent"
 
+    # API token wiring: ENV fallback and runtime override.
+    previous_env = get(ENV, "API_USGS_PAT", nothing)
+    try
+        ENV["API_USGS_PAT"] = "env-token"
+        headers_env = Dict(DataRetrieval._default_headers())
+        @test get(headers_env, "X-Api-Key", nothing) == "env-token"
+
+        setUSGSAPIToken!("runtime-token")
+        headers_runtime = Dict(DataRetrieval._default_headers())
+        @test get(headers_runtime, "X-Api-Key", nothing) == "runtime-token"
+
+        clearUSGSAPIToken!()
+        headers_cleared = Dict(DataRetrieval._default_headers())
+        @test get(headers_cleared, "X-Api-Key", nothing) == "env-token"
+    finally
+        clearUSGSAPIToken!()
+        if previous_env === nothing
+            pop!(ENV, "API_USGS_PAT", nothing)
+        else
+            ENV["API_USGS_PAT"] = previous_env
+        end
+    end
+
 end

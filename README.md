@@ -4,6 +4,9 @@
 
 DataRetrieval.jl is a Julia alternative to the R [dataRetrieval](https://code.usgs.gov/water/dataRetrieval) package for obtaining USGS water data directly from web services. There is also a [Python dataretrieval](https://github.com/DOI-USGS/dataretrieval-python) package designed to perform the same functionality in the Python language.
 
+Current Julia support includes NWIS, WQP, and WaterData samples-data API
+functions.
+
 **Note:** Due to the both the relative newness of the Julia language and a
 lack of knowledge regarding its adoption within the water community, the
 development of this package will be subject to demand from the community.
@@ -29,6 +32,30 @@ pkg> add https://code.usgs.gov/water/computational-tools/DataRetrieval.jl.git
 The package is designed to be used in a similar manner to the R package.
 For example, to obtain information about a site, you can use the
 `readNWISsite` function:
+
+### WaterData API Token (Recommended)
+
+USGS WaterData APIs may rate limit unauthenticated requests. For higher rate
+limits, register for an API key at
+[https://api.waterdata.usgs.gov/signup/](https://api.waterdata.usgs.gov/signup/)
+and set it as an environment variable before using DataRetrieval.jl:
+
+```julia
+julia> ENV["API_USGS_PAT"] = "your_api_key_here"
+```
+
+You can also set a token for only the current Julia session:
+
+```julia
+julia> using DataRetrieval
+julia> setUSGSAPIToken!("your_api_key_here")
+```
+
+To clear the session-specific token override:
+
+```julia
+julia> clearUSGSAPIToken!()
+```
 
 ```julia
 julia> using DataRetrieval
@@ -64,6 +91,7 @@ The documentation for the package is currently available on RStudio Connect,
 and can be found [here](https://rconnect.usgs.gov/DataRetrieval-jl/).
 
 Documentation for the "dev" branch is also available, and can be found [here](https://rconnect.usgs.gov/DataRetrieval-jl-dev/).
+
 
 ## Contributing
 

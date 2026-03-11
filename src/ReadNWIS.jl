@@ -3,6 +3,15 @@ struct FunctionNotDefinedException <: Exception
     var::String
 end
 
+const _NWIS_WARNING_SHOWN = Ref(false)
+
+function _warn_nwis_decommission_once()
+    if _NWIS_WARNING_SHOWN[] == false
+        @warn "The NWIS services are deprecated and being decommissioned. Please use WaterData APIs for new workflows."
+        _NWIS_WARNING_SHOWN[] = true
+    end
+end
+
 """
     readNWISdv(siteNumbers, parameterCd;
                startDate="", endDate="", statCd="00003", format="rdb")
@@ -96,9 +105,10 @@ Function to obtain water quality data from the NWIS web service.
 """
 function readNWISqw(siteNumbers;
                     startDate="", endDate="", format="rdb", expanded=true)
-    # throw error as functionality doesn't work yet...
-    throw(FunctionNotDefinedException(
-        "qwdata service querying functionality has not been developed yet."))
+    _warn_nwis_decommission_once()
+    throw(ArgumentError(
+        "`readNWISqw` has been replaced by WaterData samples endpoints. Use `readWaterDataSamples(service=\"results\", ...)` or `readWaterDataResults(...)`."
+    ))
     # construct the query URL
     url = constructNWISURL(
         siteNumbers,
@@ -248,6 +258,7 @@ Function to take an NWIS url (typically constructed using the
 `constructNWISURL()` function) and return the associated data.
 """
 function readNWIS(obs_url)
+    _warn_nwis_decommission_once()
     # do the API GET query
     response = _custom_get(obs_url)
     # then, depending on the URL, do different things

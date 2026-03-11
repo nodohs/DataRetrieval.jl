@@ -62,3 +62,9 @@
 
 
 end
+
+@testset "NWIS decommission messaging" begin
+    # qw endpoint should be retired with an actionable error
+    @test_throws ArgumentError readNWISqw("01646500")
+    @test_throws ArgumentError readNWISqwdata("01646500")
+end

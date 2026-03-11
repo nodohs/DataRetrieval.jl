@@ -2,6 +2,16 @@
 
 @testset "WQP Testing" begin
 
+    # URL construction parity (legacy + WQX3)
+    @test constructWQPURL("Result") == "https://www.waterqualitydata.us/data/Result/Search?"
+    @test constructWQPURL("Result"; legacy=false) == "https://www.waterqualitydata.us/wqx3/Result/search?"
+    # Service not available in WQX3 should fall back to legacy URL
+    @test constructWQPURL("Organization"; legacy=false) == "https://www.waterqualitydata.us/data/Organization/Search?"
+
+    # mimeType validation parity with python behavior
+    @test_throws ArgumentError DataRetrieval._genericWQPcall("Result", Dict("mimeType" => "geojson"))
+    @test_throws ArgumentError DataRetrieval._genericWQPcall("Result", Dict("mimeType" => "xml"))
+
     # generic data function
     df, response = readWQPdata("ActivityMetric", statecode="US:38",
                                startDateLo="07-01-2006",
@@ -15,6 +25,8 @@
     @test typeof(df) == DataFrame
     @test response.status == 200
     @test isa(response, HTTP.Messages.Response)
+
+    # WQX3 routing is validated in URL construction tests above.
 
     # sites query
     df, response = whatWQPsites(lat="44.2", long="-88.9", within="2.5")

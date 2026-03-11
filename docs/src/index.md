@@ -9,6 +9,18 @@ versions of data retrieval are available:
 package currently takes place on GitLab, in the
 [DataRetrieval.jl repository](https://code.usgs.gov/water/computational-tools/DataRetrieval.jl).
 
+The Julia package includes support for NWIS, WQP, and WaterData samples-data
+queries.
+
+USGS WaterData APIs may apply stricter rate limits to unauthenticated requests.
+For higher rate limits, register for an API key at
+[https://api.waterdata.usgs.gov/signup/](https://api.waterdata.usgs.gov/signup/)
+and set `ENV["API_USGS_PAT"]` before making requests. You can also set a
+session-only override with `setUSGSAPIToken!("...")`.
+
+NWIS legacy endpoints are being decommissioned. For water-quality samples,
+prefer `readWaterDataSamples` over NWIS `qw/qwdata` workflows.
+
 ## Installation
 
 ### User Installation

@@ -46,8 +46,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function readWQPdata(service; kwargs...)
-    df, response = _genericWQPcall(service, Dict(kwargs...))
+function readWQPdata(service; legacy=true, kwargs...)
+    df, response = _genericWQPcall(service, Dict(kwargs...); legacy=legacy)
     # return the data frame
     return df, response
 end
@@ -72,8 +72,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function readWQPresults(; kwargs...)
-    df, response = _genericWQPcall("Result", Dict(kwargs...))
+function readWQPresults(; legacy=true, kwargs...)
+    df, response = _genericWQPcall("Result", Dict(kwargs...); legacy=legacy)
     # return the data frame
     return df, response
 end
@@ -98,8 +98,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPsites(; kwargs...)
-    df, response = _genericWQPcall("Station", Dict(kwargs...))
+function whatWQPsites(; legacy=true, kwargs...)
+    df, response = _genericWQPcall("Station", Dict(kwargs...); legacy=legacy)
     # return the data frame
     return df, response
 end
@@ -124,8 +124,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPorganizations(; kwargs...)
-    df, response = _genericWQPcall("Organization", Dict(kwargs...))
+function whatWQPorganizations(; legacy=true, kwargs...)
+    df, response = _genericWQPcall("Organization", Dict(kwargs...); legacy=legacy)
     # return the data frame
     return df, response
 end
@@ -150,8 +150,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPprojects(; kwargs...)
-    df, response = _genericWQPcall("Project", Dict(kwargs...))
+function whatWQPprojects(; legacy=true, kwargs...)
+    df, response = _genericWQPcall("Project", Dict(kwargs...); legacy=legacy)
     # return the data frame
     return df, response
 end
@@ -178,8 +178,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPactivities(; kwargs...)
-    df, response = _genericWQPcall("Activity", Dict(kwargs...))
+function whatWQPactivities(; legacy=true, kwargs...)
+    df, response = _genericWQPcall("Activity", Dict(kwargs...); legacy=legacy)
     # return the data frame
     return df, response
 end
@@ -207,9 +207,9 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPdetectionLimits(; kwargs...)
+function whatWQPdetectionLimits(; legacy=true, kwargs...)
     df, response = _genericWQPcall("ResultDetectionQuantitationLimit",
-                                   Dict(kwargs...))
+                                   Dict(kwargs...); legacy=legacy)
     # return the data frame
     return df, response
 end
@@ -234,8 +234,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPhabitatMetrics(; kwargs...)
-    df, response = _genericWQPcall("BiologicalMetric", Dict(kwargs...))
+function whatWQPhabitatMetrics(; legacy=true, kwargs...)
+    df, response = _genericWQPcall("BiologicalMetric", Dict(kwargs...); legacy=legacy)
     # return the data frame
     return df, response
 end
@@ -262,9 +262,9 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPprojectWeights(; kwargs...)
+function whatWQPprojectWeights(; legacy=true, kwargs...)
     df, response = _genericWQPcall("ProjectMonitoringLocationWeighting",
-                                   Dict(kwargs...))
+                                   Dict(kwargs...); legacy=legacy)
     # return the data frame
     return df, response
 end
@@ -291,8 +291,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPactivityMetrics(; kwargs...)
-    df, response = _genericWQPcall("ActivityMetric", Dict(kwargs...))
+function whatWQPactivityMetrics(; legacy=true, kwargs...)
+    df, response = _genericWQPcall("ActivityMetric", Dict(kwargs...); legacy=legacy)
     # return the data frame
     return df, response
 end
@@ -302,11 +302,26 @@ end
 
 Private function to be called by the other wrapper WQP functions.
 """
-function _genericWQPcall(service, query_params)
+function _genericWQPcall(service, query_params; legacy=true)
+    normalized_query = Dict{String, Any}()
+    for (k, v) in query_params
+        normalized_query[String(k)] = v
+    end
+
+    if haskey(normalized_query, "mimeType")
+        mime = lowercase(String(normalized_query["mimeType"]))
+        if mime == "geojson"
+            throw(ArgumentError("GeoJSON is not yet supported. Set mimeType=csv."))
+        elseif mime != "csv"
+            throw(ArgumentError("Invalid mimeType. Set mimeType=csv."))
+        end
+    end
+    normalized_query["mimeType"] = "csv"
+
     # construct the base query URL
-    url = constructWQPURL(service)
+    url = constructWQPURL(service; legacy=legacy)
     # do the GET request
-    response = _custom_get(url, query_params=query_params)
+    response = _custom_get(url, query_params=normalized_query)
     # parse the Response
     df = DataFrame(CSV.File(response.body))
     # return the data frame
