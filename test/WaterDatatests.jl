@@ -9,6 +9,26 @@
     @test_throws ArgumentError readWaterDataSamples(service="results", profile="foo")
     @test_throws ArgumentError readWaterDataCodes("invalid_service")
 
+    params, response = getWaterDataOGCParams("daily")
+    @test response.status == 200
+    @test haskey(params, "monitoring_location_id")
+
+    payload, response = checkWaterDataOGCRequests(endpoint="daily", request_type="queryables")
+    @test response.status == 200
+    @test isa(payload, AbstractDict)
+
+    df, response = readWaterData(
+        "daily",
+        monitoring_location_id="USGS-05427718",
+        parameter_code="00060",
+        time="2025-01-01/2025-01-07",
+        no_paging=true,
+        limit=200
+    )
+    @test typeof(df) == DataFrame
+    @test response.status == 200
+    @test nrow(df) > 0
+
     # ------------------------------------------------------------------
     # readWaterDataCodes — code-service lookup
     # ------------------------------------------------------------------
@@ -124,7 +144,7 @@
     )
     @test typeof(df) == DataFrame
     @test response.status == 200
-    @test "daily_id" in string.(names(df))
+    @test "daily_id" ∉ string.(names(df))
 
     df, response = readWaterDataContinuous(
         monitoring_location_id="USGS-06904500",
@@ -173,6 +193,30 @@
     @test typeof(df) == DataFrame
     @test response.status == 200
     @test "field_measurement_id" in string.(names(df))
+
+    df, response = readWaterDataChannelMeasurements(
+        monitoring_location_id="USGS-02238500",
+        limit=200,
+        skip_geometry=true
+    )
+    @test typeof(df) == DataFrame
+    @test response.status == 200
+
+    df, response = readWaterDataFieldMetadata(
+        monitoring_location_id="USGS-02238500",
+        limit=200,
+        skip_geometry=true
+    )
+    @test typeof(df) == DataFrame
+    @test response.status == 200
+
+    df, response = readWaterDataCombinedMetadata(
+        monitoring_location_id="USGS-05407000",
+        limit=200,
+        skip_geometry=true
+    )
+    @test typeof(df) == DataFrame
+    @test response.status == 200
 
     df, response = readWaterDataTimeSeriesMetadata(
         bbox=[-89.840355, 42.853411, -88.818626, 43.422598],

@@ -5,6 +5,19 @@ const _WATERDATA_BASE_URL = "https://api.waterdata.usgs.gov/samples-data"
 const _WATERDATA_OGC_BASE_URL = "https://api.waterdata.usgs.gov/ogcapi/v0"
 const _WATERDATA_STATS_BASE_URL = "https://api.waterdata.usgs.gov/statistics/v0"
 
+const _WATERDATA_OGC_COLLECTIONS = Set([
+  "daily",
+  "continuous",
+  "monitoring-locations",
+  "time-series-metadata",
+  "latest-continuous",
+  "latest-daily",
+  "field-measurements",
+  "field-measurements-metadata",
+  "combined-metadata",
+  "channel-measurements",
+])
+
 const _WATERDATA_CODE_SERVICES = Set([
     "characteristicgroup",
     "characteristics",
@@ -65,6 +78,153 @@ const _WATERDATA_METADATA_COLLECTIONS = Set([
 # ---------------------------------------------------------------------------
 # Primary public API
 # ---------------------------------------------------------------------------
+
+"""
+  readWaterData(service; cql=nothing, ssl_check=true, kwargs...)
+
+Generalized USGS WaterData OGC retrieval for any supported collection.
+
+This function is useful for advanced filtering and parity with R's
+`read_waterdata` workflow.
+
+# Arguments
+- `service::String`: OGC collection name (for example `"daily"`,
+  `"continuous"`, `"monitoring-locations"`).
+
+# Keyword Arguments
+- `cql::Union{Nothing,String,AbstractDict}=nothing`: Optional CQL2 JSON
+  filter body. When provided, the request is sent as POST with
+  `Content-Type: application/query-cql-json`.
+- `ssl_check::Bool=true`: Whether to verify SSL certificates.
+- Any collection query parameters (for example `monitoring_location_id`,
+  `parameter_code`, `time`, `properties`, `bbox`, `limit`).
+- `no_paging::Bool=false`: If `true`, only the first page is requested.
+
+# Returns
+- `df::DataFrame`: Query results.
+- `response::HTTP.Messages.Response`: Raw HTTP response from the first page.
+"""
+function readWaterData(service; cql=nothing, ssl_check=true, kwargs...)
+  svc = lowercase(String(service))
+  if svc ∉ _WATERDATA_OGC_COLLECTIONS
+    throw(ArgumentError(
+      "Invalid WaterData service: '$svc'. " *
+      "Valid options are: $(sort(collect(_WATERDATA_OGC_COLLECTIONS)))"
+    ))
+  end
+
+  output_id = _waterdata_output_id(svc)
+  url = string(_WATERDATA_OGC_BASE_URL, "/collections/", svc, "/items")
+
+  query_params, no_paging = _waterdata_prepare_ogc_query(kwargs)
+
+  if cql === nothing
+    df, response = _waterdata_ogc_get(svc, output_id;
+                      ssl_check=ssl_check,
+                      _extra_query=query_params,
+                      no_paging=no_paging)
+    return df, response
+  end
+
+  cql_body = cql isa AbstractDict ? JSON.json(cql) : String(cql)
+  headers = _default_headers()
+  push!(headers, "Content-Type" => "application/query-cql-json")
+
+  response = HTTP.request("POST", url, headers, cql_body,
+              query=query_params,
+              connect_timeout=30,
+              retry=true,
+              retry_limit=5,
+              require_ssl_verification=ssl_check)
+
+  parsed = JSON.parse(String(response.body))
+  parsed_pages = Any[parsed]
+  if no_paging == false
+    next_url = _waterdata_next_link(parsed)
+    while next_url !== nothing
+      page_response = _custom_get(next_url; ssl_check=ssl_check)
+      page_parsed = JSON.parse(String(page_response.body))
+      push!(parsed_pages, page_parsed)
+      next_url = _waterdata_next_link(page_parsed)
+    end
+  end
+
+  dfs = DataFrame[]
+  for page in parsed_pages
+    push!(dfs, _waterdata_flatten_ogc_features(page))
+  end
+  df = isempty(dfs) ? DataFrame() : reduce((a, b) -> vcat(a, b; cols=:union), dfs)
+  _waterdata_rename_id!(df, output_id)
+  _waterdata_cast_columns!(df)
+  return df, response
+end
+
+"""
+  checkWaterDataOGCRequests(; endpoint="daily", request_type="queryables", ssl_check=true)
+
+Request OGC collection metadata (`queryables` or `schema`) for a WaterData
+collection.
+
+# Keyword Arguments
+- `endpoint::String="daily"`: OGC collection name.
+- `request_type::String="queryables"`: One of `"queryables"` or `"schema"`.
+- `ssl_check::Bool=true`: Whether to verify SSL certificates.
+
+# Returns
+- `payload::Dict{String,Any}`: Parsed JSON response.
+- `response::HTTP.Messages.Response`: Raw HTTP response object.
+"""
+function checkWaterDataOGCRequests(; endpoint="daily", request_type="queryables", ssl_check=true)
+  svc = lowercase(String(endpoint))
+  req_type = lowercase(String(request_type))
+
+  if svc ∉ _WATERDATA_OGC_COLLECTIONS && svc ∉ _WATERDATA_METADATA_COLLECTIONS
+    throw(ArgumentError(
+      "Invalid endpoint '$svc'. " *
+      "Valid options include OGC collections and metadata collections."
+    ))
+  end
+  if req_type != "queryables" && req_type != "schema"
+    throw(ArgumentError("request_type must be either 'queryables' or 'schema'"))
+  end
+
+  url = string(_WATERDATA_OGC_BASE_URL, "/collections/", svc, "/", req_type)
+  response = _custom_get(url; ssl_check=ssl_check)
+  payload = JSON.parse(String(response.body))
+  return payload, response
+end
+
+"""
+  getWaterDataOGCParams(service; ssl_check=true)
+
+Get parameter descriptions for a WaterData OGC collection using the collection
+schema endpoint.
+
+# Arguments
+- `service::String`: OGC collection name.
+
+# Returns
+- `params::Dict{String,Any}`: Mapping from parameter/property names to
+  descriptions when available.
+- `response::HTTP.Messages.Response`: Raw HTTP response object.
+"""
+function getWaterDataOGCParams(service; ssl_check=true)
+  schema, response = checkWaterDataOGCRequests(endpoint=service,
+                         request_type="schema",
+                         ssl_check=ssl_check)
+  props = get(schema, "properties", Dict{String,Any}())
+  params = Dict{String,Any}()
+  if props isa AbstractDict
+    for (k, v) in props
+      if v isa AbstractDict
+        params[String(k)] = get(v, "description", missing)
+      else
+        params[String(k)] = missing
+      end
+    end
+  end
+  return params, response
+end
 
 """
     readWaterDataCodes(code_service; ssl_check=true)
@@ -503,7 +663,10 @@ HTTP.Messages.Response
 ```
 """
 function readWaterDataDaily(; ssl_check=true, kwargs...)
-  return _waterdata_ogc_get("daily", "daily_id"; ssl_check=ssl_check, kwargs...)
+  df, response = _waterdata_ogc_get("daily", "daily_id"; ssl_check=ssl_check, kwargs...)
+  # The daily ID is not stable over time and is omitted in R parity behavior.
+  _waterdata_drop_column!(df, "daily_id")
+  return df, response
 end
 
 """
@@ -641,6 +804,48 @@ function readWaterDataFieldMeasurements(; ssl_check=true, kwargs...)
 end
 
 """
+    readWaterDataChannelMeasurements(; ssl_check=true, kwargs...)
+
+Query channel-measurement observations from the USGS WaterData OGC API
+(`channel-measurements` collection).
+
+# Returns
+- `df::DataFrame`: Channel measurement records.
+- `response::HTTP.Messages.Response`: Raw HTTP response object.
+"""
+function readWaterDataChannelMeasurements(; ssl_check=true, kwargs...)
+  return _waterdata_ogc_get("channel-measurements", "channel_measurements_id"; ssl_check=ssl_check, kwargs...)
+end
+
+"""
+    readWaterDataFieldMetadata(; ssl_check=true, kwargs...)
+
+Query field-measurement metadata from the USGS WaterData OGC API
+(`field-measurements-metadata` collection).
+
+# Returns
+- `df::DataFrame`: Field metadata records.
+- `response::HTTP.Messages.Response`: Raw HTTP response object.
+"""
+function readWaterDataFieldMetadata(; ssl_check=true, kwargs...)
+  return _waterdata_ogc_get("field-measurements-metadata", "field_series_id"; ssl_check=ssl_check, kwargs...)
+end
+
+"""
+    readWaterDataCombinedMetadata(; ssl_check=true, kwargs...)
+
+Query combined site and time-series metadata from the USGS WaterData OGC API
+(`combined-metadata` collection).
+
+# Returns
+- `df::DataFrame`: Combined metadata records.
+- `response::HTTP.Messages.Response`: Raw HTTP response object.
+"""
+function readWaterDataCombinedMetadata(; ssl_check=true, kwargs...)
+  return _waterdata_ogc_get("combined-metadata", "combined_meta_id"; ssl_check=ssl_check, kwargs...)
+end
+
+"""
     readWaterDataReferenceTable(collection; query=Dict(), ssl_check=true)
 
 Fetch a WaterData metadata reference table from the OGC API.
@@ -750,15 +955,57 @@ end
 
 function _waterdata_ogc_get(service::String, output_id::String; ssl_check=true, kwargs...)
   url = string(_WATERDATA_OGC_BASE_URL, "/collections/", service, "/items")
+  query_params, no_paging = _waterdata_prepare_ogc_query(kwargs)
+  parsed_pages, response = _waterdata_collect_ogc_pages(url, query_params, ssl_check;
+                                                        no_paging=no_paging)
+
+  dfs = DataFrame[]
+  for parsed in parsed_pages
+    push!(dfs, _waterdata_flatten_ogc_features(parsed))
+  end
+  df = isempty(dfs) ? DataFrame() : reduce((a, b) -> vcat(a, b; cols=:union), dfs)
+
+  _waterdata_rename_id!(df, output_id)
+  _waterdata_cast_columns!(df)
+  return df, response
+end
+
+function _waterdata_collect_ogc_pages(url::String,
+                                      query_params::Dict{String,String},
+                                      ssl_check::Bool;
+                                      no_paging::Bool=false)
+  response = _custom_get(url; query_params=query_params, ssl_check=ssl_check)
+  parsed = JSON.parse(String(response.body))
+  pages = Any[parsed]
+
+  if no_paging == false
+    next_url = _waterdata_next_link(parsed)
+    while next_url !== nothing
+      page_response = _custom_get(next_url; ssl_check=ssl_check)
+      page_parsed = JSON.parse(String(page_response.body))
+      push!(pages, page_parsed)
+      next_url = _waterdata_next_link(page_parsed)
+    end
+  end
+
+  return pages, response
+end
+
+function _waterdata_prepare_ogc_query(kwargs)
   query_params = Dict{String,String}()
 
   extra_query = nothing
+  no_paging = false
   if haskey(kwargs, :_extra_query)
     extra_query = kwargs[:_extra_query]
+  end
+  if haskey(kwargs, :no_paging)
+    no_paging = Bool(kwargs[:no_paging])
   end
 
   for (k, v) in kwargs
     k == :_extra_query && continue
+    k == :no_paging && continue
     v === nothing && continue
     key = String(k)
     if key == "bbox" && v isa AbstractVector
@@ -782,12 +1029,28 @@ function _waterdata_ogc_get(service::String, output_id::String; ssl_check=true, 
     end
   end
 
-  response = _custom_get(url; query_params=query_params, ssl_check=ssl_check)
-  parsed = JSON.parse(String(response.body))
-  df = _waterdata_flatten_ogc_features(parsed)
-  _waterdata_rename_id!(df, output_id)
-  _waterdata_cast_columns!(df)
-  return df, response
+  return query_params, no_paging
+end
+
+function _waterdata_next_link(parsed)
+  links = get(parsed, "links", Any[])
+  for link in links
+    if link isa AbstractDict
+      rel = lowercase(string(get(link, "rel", "")))
+      href = get(link, "href", nothing)
+      if rel == "next" && href !== nothing
+        href_str = String(href)
+        if startswith(href_str, "http://") || startswith(href_str, "https://")
+          return href_str
+        elseif startswith(href_str, "/")
+          return string("https://api.waterdata.usgs.gov", href_str)
+        else
+          return string(_WATERDATA_OGC_BASE_URL, "/", href_str)
+        end
+      end
+    end
+  end
+  return nothing
 end
 
 function _waterdata_flatten_ogc_features(parsed)
@@ -866,14 +1129,35 @@ end
 function _waterdata_stats_get(endpoint::String; ssl_check=true, expand_percentiles=true, kwargs...)
   url = string(_WATERDATA_STATS_BASE_URL, "/", endpoint)
   query_params = Dict{String,String}()
+  no_paging = false
   for (k, v) in kwargs
+    if k == :no_paging
+      no_paging = Bool(v)
+      continue
+    end
     v === nothing && continue
     query_params[String(k)] = _waterdata_query_value(v)
   end
 
   response = _custom_get(url; query_params=query_params, ssl_check=ssl_check)
   parsed = JSON.parse(String(response.body))
-  df = _waterdata_flatten_stats(parsed)
+
+  all_features = Any[]
+  append!(all_features, get(parsed, "features", Any[]))
+
+  if no_paging == false
+    next_token = get(parsed, "next", nothing)
+    while next_token !== nothing && string(next_token) != ""
+      query_params["next"] = string(next_token)
+      page_response = _custom_get(url; query_params=query_params, ssl_check=ssl_check)
+      page_parsed = JSON.parse(String(page_response.body))
+      append!(all_features, get(page_parsed, "features", Any[]))
+      next_token = get(page_parsed, "next", nothing)
+    end
+  end
+
+  parsed_all = Dict("features" => all_features)
+  df = _waterdata_flatten_stats(parsed_all)
 
   if expand_percentiles
     computation_col = _waterdata_find_column(df, "computation")
@@ -898,6 +1182,47 @@ function _waterdata_stats_get(endpoint::String; ssl_check=true, expand_percentil
   end
 
   return df, response
+end
+
+function _waterdata_drop_column!(df::DataFrame, col::String)
+  if col in string.(names(df))
+    select!(df, Not([c for c in names(df) if string(c) == col]))
+  end
+  return df
+end
+
+function _waterdata_output_id(service::String)
+  svc = lowercase(String(service))
+  if svc == "daily"
+    return "daily_id"
+  elseif svc == "latest-daily"
+    return "latest_daily_id"
+  elseif svc == "latest-continuous"
+    return "latest_continuous_id"
+  elseif svc == "continuous"
+    return "continuous_id"
+  elseif svc == "monitoring-locations"
+    return "monitoring_location_id"
+  elseif svc == "time-series-metadata"
+    return "time_series_id"
+  elseif svc == "field-measurements"
+    return "field_measurement_id"
+  elseif svc == "field-measurements-metadata"
+    return "field_series_id"
+  elseif svc == "combined-metadata"
+    return "combined_meta_id"
+  elseif svc == "channel-measurements"
+    return "channel_measurements_id"
+  elseif svc in _WATERDATA_METADATA_COLLECTIONS
+    if endswith(svc, "s") && svc != "counties"
+      return replace(chop(svc), "-" => "_")
+    elseif svc == "counties"
+      return "county"
+    else
+      return replace(svc, "-" => "_")
+    end
+  end
+  return replace(svc, "-" => "_")
 end
 
 function _waterdata_find_column(df::DataFrame, target::String)

@@ -106,7 +106,19 @@ readWaterDataSamples
 ```
 
 ```@docs
+readWaterData
+```
+
+```@docs
 readWaterDataCodes
+```
+
+```@docs
+checkWaterDataOGCRequests
+```
+
+```@docs
+getWaterDataOGCParams
 ```
 
 ```@docs
@@ -155,6 +167,18 @@ readWaterDataLatestDaily
 
 ```@docs
 readWaterDataFieldMeasurements
+```
+
+```@docs
+readWaterDataChannelMeasurements
+```
+
+```@docs
+readWaterDataFieldMetadata
+```
+
+```@docs
+readWaterDataCombinedMetadata
 ```
 
 ```@docs

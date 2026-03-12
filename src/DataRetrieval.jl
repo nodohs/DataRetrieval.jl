@@ -40,6 +40,9 @@ export whatWQPactivityMetrics
 # Include functions to read WaterData API data
 include("ReadWaterData.jl")
 export readWaterDataCodes
+export readWaterData
+export checkWaterDataOGCRequests
+export getWaterDataOGCParams
 export readWaterDataSamples
 export readWaterDataResults
 export whatWaterDataLocations
@@ -53,6 +56,9 @@ export readWaterDataTimeSeriesMetadata
 export readWaterDataLatestContinuous
 export readWaterDataLatestDaily
 export readWaterDataFieldMeasurements
+export readWaterDataChannelMeasurements
+export readWaterDataFieldMetadata
+export readWaterDataCombinedMetadata
 export readWaterDataReferenceTable
 export readWaterDataStatsPOR
 export readWaterDataStatsDateRange
