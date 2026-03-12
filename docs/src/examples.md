@@ -1,5 +1,10 @@
 # Examples
 
+Legacy NWIS examples are still shown below, but for new development you should
+prefer `readWaterData*` functions when equivalent functionality is available.
+See the migration context from upstream R docs:
+<https://doi-usgs.github.io/dataRetrieval/articles/read_waterdata_functions.html>.
+
 ## Index
 
 ```@contents
