@@ -46,8 +46,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function readWQPdata(service; legacy=true, kwargs...)
-    df, response = _genericWQPcall(service, Dict(kwargs...); legacy=legacy)
+function readWQPdata(service; legacy=true, ssl_check=true, kwargs...)
+    df, response = _genericWQPcall(service, Dict(kwargs...); legacy=legacy, ssl_check=ssl_check)
     # return the data frame
     return df, response
 end
@@ -72,8 +72,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function readWQPresults(; legacy=true, kwargs...)
-    df, response = _genericWQPcall("Result", Dict(kwargs...); legacy=legacy)
+function readWQPresults(; legacy=true, ssl_check=true, kwargs...)
+    df, response = _genericWQPcall("Result", Dict(kwargs...); legacy=legacy, ssl_check=ssl_check)
     # return the data frame
     return df, response
 end
@@ -98,8 +98,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPsites(; legacy=true, kwargs...)
-    df, response = _genericWQPcall("Station", Dict(kwargs...); legacy=legacy)
+function whatWQPsites(; legacy=true, ssl_check=true, kwargs...)
+    df, response = _genericWQPcall("Station", Dict(kwargs...); legacy=legacy, ssl_check=ssl_check)
     # return the data frame
     return df, response
 end
@@ -124,8 +124,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPorganizations(; legacy=true, kwargs...)
-    df, response = _genericWQPcall("Organization", Dict(kwargs...); legacy=legacy)
+function whatWQPorganizations(; legacy=true, ssl_check=true, kwargs...)
+    df, response = _genericWQPcall("Organization", Dict(kwargs...); legacy=legacy, ssl_check=ssl_check)
     # return the data frame
     return df, response
 end
@@ -150,8 +150,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPprojects(; legacy=true, kwargs...)
-    df, response = _genericWQPcall("Project", Dict(kwargs...); legacy=legacy)
+function whatWQPprojects(; legacy=true, ssl_check=true, kwargs...)
+    df, response = _genericWQPcall("Project", Dict(kwargs...); legacy=legacy, ssl_check=ssl_check)
     # return the data frame
     return df, response
 end
@@ -178,8 +178,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPactivities(; legacy=true, kwargs...)
-    df, response = _genericWQPcall("Activity", Dict(kwargs...); legacy=legacy)
+function whatWQPactivities(; legacy=true, ssl_check=true, kwargs...)
+    df, response = _genericWQPcall("Activity", Dict(kwargs...); legacy=legacy, ssl_check=ssl_check)
     # return the data frame
     return df, response
 end
@@ -207,9 +207,9 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPdetectionLimits(; legacy=true, kwargs...)
+function whatWQPdetectionLimits(; legacy=true, ssl_check=true, kwargs...)
     df, response = _genericWQPcall("ResultDetectionQuantitationLimit",
-                                   Dict(kwargs...); legacy=legacy)
+                                   Dict(kwargs...); legacy=legacy, ssl_check=ssl_check)
     # return the data frame
     return df, response
 end
@@ -234,8 +234,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPhabitatMetrics(; legacy=true, kwargs...)
-    df, response = _genericWQPcall("BiologicalMetric", Dict(kwargs...); legacy=legacy)
+function whatWQPhabitatMetrics(; legacy=true, ssl_check=true, kwargs...)
+    df, response = _genericWQPcall("BiologicalMetric", Dict(kwargs...); legacy=legacy, ssl_check=ssl_check)
     # return the data frame
     return df, response
 end
@@ -262,9 +262,9 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPprojectWeights(; legacy=true, kwargs...)
+function whatWQPprojectWeights(; legacy=true, ssl_check=true, kwargs...)
     df, response = _genericWQPcall("ProjectMonitoringLocationWeighting",
-                                   Dict(kwargs...); legacy=legacy)
+                                   Dict(kwargs...); legacy=legacy, ssl_check=ssl_check)
     # return the data frame
     return df, response
 end
@@ -291,8 +291,8 @@ julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
 """
-function whatWQPactivityMetrics(; legacy=true, kwargs...)
-    df, response = _genericWQPcall("ActivityMetric", Dict(kwargs...); legacy=legacy)
+function whatWQPactivityMetrics(; legacy=true, ssl_check=true, kwargs...)
+    df, response = _genericWQPcall("ActivityMetric", Dict(kwargs...); legacy=legacy, ssl_check=ssl_check)
     # return the data frame
     return df, response
 end
@@ -302,7 +302,7 @@ end
 
 Private function to be called by the other wrapper WQP functions.
 """
-function _genericWQPcall(service, query_params; legacy=true)
+function _genericWQPcall(service, query_params; legacy=true, ssl_check=true)
     normalized_query = Dict{String, Any}()
     for (k, v) in query_params
         normalized_query[String(k)] = v
@@ -321,7 +321,7 @@ function _genericWQPcall(service, query_params; legacy=true)
     # construct the base query URL
     url = constructWQPURL(service; legacy=legacy)
     # do the GET request
-    response = _custom_get(url, query_params=normalized_query)
+    response = _custom_get(url, query_params=normalized_query, ssl_check=ssl_check)
     # parse the Response
     df = DataFrame(CSV.File(response.body))
     # return the data frame

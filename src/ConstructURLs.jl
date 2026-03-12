@@ -279,7 +279,7 @@ function constructWQPURL(service; legacy=true)
                 "Legacy WQP service not recognized: $service. Valid options are $(collect(legacy_services))."
             ))
         end
-        return string("https://www.waterqualitydata.us/data/", service, "/Search?")
+        return string("https://www.waterqualitydata.us/data/", service, "/search?")
     end
 
     _warn_wqp_wqx3_once()

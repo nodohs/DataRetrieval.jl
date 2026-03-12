@@ -3,10 +3,10 @@
 @testset "WQP Testing" begin
 
     # URL construction parity (legacy + WQX3)
-    @test constructWQPURL("Result") == "https://www.waterqualitydata.us/data/Result/Search?"
+    @test constructWQPURL("Result") == "https://www.waterqualitydata.us/data/Result/search?"
     @test constructWQPURL("Result"; legacy=false) == "https://www.waterqualitydata.us/wqx3/Result/search?"
     # Service not available in WQX3 should fall back to legacy URL
-    @test constructWQPURL("Organization"; legacy=false) == "https://www.waterqualitydata.us/data/Organization/Search?"
+    @test constructWQPURL("Organization"; legacy=false) == "https://www.waterqualitydata.us/data/Organization/search?"
 
     # mimeType validation parity with python behavior
     @test_throws ArgumentError DataRetrieval._genericWQPcall("Result", Dict("mimeType" => "geojson"))
