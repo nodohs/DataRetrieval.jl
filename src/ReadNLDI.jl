@@ -111,7 +111,7 @@ Get flowlines from NLDI by feature source/ID or comid.
 - `response::HTTP.Messages.Response`: Raw HTTP response.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readNLDIflowlines("UM", comid=13294314);
 
 julia> typeof(df)
@@ -179,7 +179,7 @@ Get aggregated basin geometry from NLDI.
 - `response::HTTP.Messages.Response`: Raw HTTP response.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readNLDIbasin("WQP", "USGS-054279485");
 
 julia> typeof(df)
@@ -238,12 +238,12 @@ Get NLDI features using feature_source/feature_id, comid, or lat/long origin.
 - `response::HTTP.Messages.Response`: Raw HTTP response.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readNLDIfeatures(feature_source="WQP",
                                        feature_id="USGS-054279485");
 
 julia> typeof(df)
-DataFrame
+DataFrames.DataFrame
 
 julia> typeof(response)
 HTTP.Messages.Response
@@ -345,7 +345,7 @@ Search helper for NLDI feature, basin, or flowline lookups.
 - `response::HTTP.Messages.Response`: Raw HTTP response.
 
 # Examples
-```jldoctest
+```julia
 julia> result, response = searchNLDI(feature_source="WQP",
                                      feature_id="USGS-054279485",
                                      find="basin");

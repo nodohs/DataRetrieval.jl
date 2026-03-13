@@ -1,12 +1,13 @@
 name = "DataRetrieval"
 uuid = "97bef6ac-f0d5-476a-827f-d1c55abd1767"
-authors = ["Jayaram Hariharan", "Timothy Hodson", "Laura DeCicco"]
 version = "1.0.0"
+authors = ["Jayaram Hariharan", "Timothy Hodson", "Laura DeCicco"]
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 EzXML = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
@@ -14,6 +15,7 @@ JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 [compat]
 CSV = ">= 0.10.16"
 DataFrames = ">= 1.8.1"
+Documenter = "1.17.0"
 EzXML = ">= 1.2.3"
 HTTP = ">= 1.11.0"
 JSON = ">= 1.4.0"

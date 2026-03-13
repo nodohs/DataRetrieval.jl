@@ -247,11 +247,11 @@ etc.) before constructing a `readWaterDataSamples` call.
 - `response::HTTP.Messages.Response`: The raw HTTP response object.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readWaterDataCodes("states");
 
 julia> typeof(df)
-DataFrame
+DataFrames.DataFrame
 
 julia> typeof(response)
 HTTP.Messages.Response
@@ -354,7 +354,7 @@ the Swagger docs are at https://api.waterdata.usgs.gov/samples-data/docs.
 - `response::HTTP.Messages.Response`: The raw HTTP response object.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readWaterDataSamples(
            service="results",
            profile="narrow",
@@ -363,7 +363,7 @@ julia> df, response = readWaterDataSamples(
            activityStartDateUpper="2025-04-24");
 
 julia> typeof(df)
-DataFrame
+DataFrames.DataFrame
 
 julia> typeof(response)
 HTTP.Messages.Response
@@ -464,7 +464,7 @@ convenience wrapper around `readWaterDataSamples` with
 - `response::HTTP.Messages.Response`: The raw HTTP response object.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readWaterDataResults(
            profile="narrow",
            monitoringLocationIdentifier="USGS-05288705",
@@ -472,7 +472,7 @@ julia> df, response = readWaterDataResults(
            activityStartDateUpper="2025-04-24");
 
 julia> typeof(df)
-DataFrame
+DataFrames.DataFrame
 
 julia> typeof(response)
 HTTP.Messages.Response
@@ -499,7 +499,7 @@ convenience wrapper around `readWaterDataSamples` with
 - `response::HTTP.Messages.Response`: The raw HTTP response object.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWaterDataLocations(
            stateFips="US:55",
            usgsPCode="00010",
@@ -507,7 +507,7 @@ julia> df, response = whatWaterDataLocations(
            activityStartDateUpper="2025-04-24");
 
 julia> typeof(df)
-DataFrame
+DataFrames.DataFrame
 
 julia> typeof(response)
 HTTP.Messages.Response
@@ -535,7 +535,7 @@ convenience wrapper around `readWaterDataSamples` with
 - `response::HTTP.Messages.Response`: The raw HTTP response object.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWaterDataActivities(
            monitoringLocationIdentifier="USGS-06719505");
 
@@ -568,7 +568,7 @@ convenience wrapper around `readWaterDataSamples` with
 - `response::HTTP.Messages.Response`: The raw HTTP response object.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWaterDataProjects(
            stateFips="US:15",
            activityStartDateLower="2024-10-01",
@@ -602,7 +602,7 @@ convenience wrapper around `readWaterDataSamples` with
 - `response::HTTP.Messages.Response`: The raw HTTP response object.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWaterDataOrganizations(stateFips="US:01");
 
 julia> typeof(df)
@@ -653,7 +653,7 @@ series (for example daily mean streamflow).
 - `response::HTTP.Messages.Response`: Raw HTTP response object.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readWaterDataDaily(
            monitoring_location_id="USGS-05427718",
            parameter_code="00060",

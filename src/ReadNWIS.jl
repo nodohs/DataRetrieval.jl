@@ -19,17 +19,16 @@ end
 Function to obtain daily value data from the NWIS web service.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readNWISdv("01646500", "00060",
                                  startDate="2010-10-01", endDate="2010-10-01");
 
 julia> df  # df contains the formatted data as a DataFrame
 1×5 DataFrame
- Row │ agency_cd  site_no   datetime    68478_00060_00003  68478_00060_00003_c ⋯
-     │ String7    String15  String15    String7            String3             ⋯
+ Row │ agency_cd  site_no   datetime    68478_00060_00003  68478_00060_00003_cd
+     │ String     String    Date        Int64              String1
 ─────┼──────────────────────────────────────────────────────────────────────────
-   1 │ USGS       01646500  2010-10-01  13100              A                   ⋯
-                                                                1 column omitted
+   1 │ USGS       01646500  2010-10-01              13100  A
 julia> typeof(response)  # response is the unmodified HTTP GET response object
 HTTP.Messages.Response
 ```
@@ -62,7 +61,7 @@ Function to obtain parameter code information from the NWIS web service.
 As currently implemented, support for multiple parameter codes is not included.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readNWISpCode("00060");
 
 julia> df  # df contains the formatted data as a DataFrame
@@ -147,15 +146,15 @@ end
 Function to obtain site information from the NWIS web service.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readNWISsite("05114000");
 
 julia> df  # df contains the formatted data as a DataFrame
 1×12 DataFrame
- Row │ agency_cd  site_no   station_nm                    site_tp_cd  dec_lat_ ⋯
-     │ String7    String15  String31                      String3     String15 ⋯
+ Row │ agency_cd  site_no   station_nm                      site_tp_cd  dec_lat_ ⋯
+     │ String7    String15  String31                        String3     String15 ⋯
 ─────┼──────────────────────────────────────────────────────────────────────────
-   1 │ USGS       05114000  SOURIS RIVER NR SHERWOOD, ND  ST          48.99001 ⋯
+   1 │ USGS       05114000  SOURIS RIVER NEAR SHERWOOD, ND  ST          48.99001 ⋯
                                                                8 columns omitted
 
 julia> typeof(response)  # response is the unmodified HTTP GET response object
@@ -189,7 +188,7 @@ end
 Function to obtain instantaneous value data from the NWIS web service.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readNWISunit("01646500", "00060",
                                    startDate="2022-12-29",
                                    endDate="2022-12-29");

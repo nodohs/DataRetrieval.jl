@@ -31,7 +31,7 @@ Flexible querying of the WQP. See other functions for specific queries.
   for available characteristic names).
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readWQPdata("Result",
                                   lat="44.2", long="-88.9", within="0.5");
 
@@ -58,7 +58,7 @@ end
 Query the WQP for results.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = readWQPresults(lat="44.2", long="-88.9", within="0.5");
 
 julia> first(df)[1:3]
@@ -84,7 +84,7 @@ end
 Function to search WQP for sites within a region with specific data.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWQPsites(lat="44.2", long="-88.9", within="2.5");
 
 julia> first(df)[1:3]
@@ -110,7 +110,7 @@ end
 Function to search WQP for organizations within a region with specific data.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWQPorganizations(huc="12");
 
 julia> first(df)[1:3]
@@ -136,7 +136,7 @@ end
 Function to search WQP for projects within a region with specific data.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWQPprojects(huc="19");
 
 julia> first(df)[1:3]
@@ -162,7 +162,7 @@ end
 Function to search WQP for activities within a region with specific data.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWQPactivities(statecode="US:11",
                                         startDateLo="12-30-2019",
                                         startDateHi="01-01-2020");
@@ -190,7 +190,7 @@ end
 Function to search WQP for detection limits within a region with specific data.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWQPdetectionLimits(statecode="US:44",
                                              characteristicName="Nitrite",
                                              startDateLo="01-01-2021",
@@ -220,7 +220,7 @@ end
 Function to search WQP for habitat metrics within a region with specific data.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWQPhabitatMetrics(statecode="US:44");
 
 julia> first(df)[1:3]
@@ -246,7 +246,7 @@ end
 Function to search WQP for project weights within a region with specific data.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWQPprojectWeights(statecode="US:38",
                                             startDateLo="01-01-2006",
                                             startDateHi="01-01-2008");
@@ -275,7 +275,7 @@ end
 Function to search WQP for activity metrics within a region with specific data.
 
 # Examples
-```jldoctest
+```julia
 julia> df, response = whatWQPactivityMetrics(statecode="US:38",
                                              startDateLo="07-01-2006",
                                              startDateHi="12-01-2006");
