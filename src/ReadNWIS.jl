@@ -288,18 +288,35 @@ R has additional functionality of being able to specify a timezone when
 data is that granular, could add this too.
 """
 function _readRDB(response)
-    # read the response body into a dataframe
-    # RDB files have a definition line (e.g. 5s 15s) after the header that must be skipped.
-    df = DataFrame(CSV.File(response.body; comment="#", header=1, skipto=3, delim='\t'))
+    # read the response body into lines, ignoring comments
+    # We use copy() because String() constructor can be destructive to the underlying vector.
+    content = String(copy(response.body))
+    lines = filter(l -> !startswith(l, "#") && !isempty(l), split(content, "\n"))
+
+    # RDB files standardly have a header line followed by a definition line (e.g. 5s 15s)
+    # If the file is too short, or doesn't look like RDB, we fall back to generic parsing.
+    if length(lines) >= 2 && occursin(r"^[0-9a-z\s\t]+$", lines[2])
+        # RDB files standardly have a definition line after the header that must be skipped.
+        # We force site_no and agency_cd to String to preserve leading zeros.
+        df = DataFrame(CSV.File(response.body; comment="#", header=1, skipto=3, delim='\t',
+                                types=Dict(:site_no => String, :agency_cd => String),
+                                validate=false))
+    else
+        # Fallback for short or non-standard RDB returns (often errors/redirects)
+        # We still try to force types if columns exist.
+        df = DataFrame(CSV.File(response.body; comment="#",
+                                types=Dict(:site_no => String, :agency_cd => String),
+                                validate=false))
+    end
     if "datetime" in names(df)
         # filter based on date-time column
-        df = filter(:datetime => x -> length(x) >= 10, df)
+        df = filter(:datetime => x -> (isa(x, AbstractString) ? length(x) >= 10 : true), df)
     elseif "dec_lat_va" in names(df)
         # filter based on some latitude length expectation
-        df = filter(:dec_lat_va => x -> length(x) >= 4, df)
+        df = filter(:dec_lat_va => x -> (isa(x, AbstractString) ? length(x) >= 4 : true), df)
     elseif "parameter_cd" in names(df)
         # filter based on some parameter code length expectation
-        df = filter(:parameter_cd => x -> length(x) >= 4, df)
+        df = filter(:parameter_cd => x -> (isa(x, AbstractString) ? length(x) >= 4 : true), df)
     else
         println("no datetime, latitude, or parameter_cd column found, returning all data")
     end
