@@ -289,7 +289,8 @@ data is that granular, could add this too.
 """
 function _readRDB(response)
     # read the response body into a dataframe
-    df = DataFrame(CSV.File(response.body; comment="#"))
+    # RDB files have a definition line (e.g. 5s 15s) after the header that must be skipped.
+    df = DataFrame(CSV.File(response.body; comment="#", header=1, skipto=3, delim='\t'))
     if "datetime" in names(df)
         # filter based on date-time column
         df = filter(:datetime => x -> length(x) >= 10, df)
