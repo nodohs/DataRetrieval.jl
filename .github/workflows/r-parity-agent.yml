@@ -1,0 +1,107 @@
+name: R Parity Agent
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  AGENT_BRANCH: r-parity-agent
+  UPSTREAM_R_REPO: DOI-USGS/dataRetrieval
+  TARGET_JULIA_REPO: nodohs/DataRetrieval.jl
+
+jobs:
+  monitor-and-pr:
+    if: github.repository == 'nodohs/DataRetrieval.jl' && (github.event_name != 'schedule' || github.ref == 'refs/heads/r-parity-agent')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.AGENT_BRANCH }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Monitor upstream repo
+        id: monitor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPSTREAM_REPO: ${{ env.UPSTREAM_R_REPO }}
+        run: |
+          python scripts/r_repo_monitor.py
+
+      - name: Show generated report
+        if: steps.monitor.outputs.has_updates == 'true'
+        run: |
+          echo "--- r-sync-report.md ---"
+          cat .github/automation/r-sync-report.md
+
+      - name: Persist sync state on agent branch
+        if: steps.monitor.outputs.has_updates == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/r-sync-state.json .github/automation/r-sync-report.md .github/automation/r-parity-porting-prompt.md
+          if git diff --cached --quiet; then
+            echo "No state changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(agent): record R parity sync state (${{ steps.monitor.outputs.latest_sha_short }})"
+          git push origin "${AGENT_BRANCH}"
+
+      - name: Create or update PR on target repo
+        if: steps.monitor.outputs.has_updates == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          REPORT_FILE="/tmp/r-sync-report.md"
+          PROMPT_FILE="/tmp/r-parity-porting-prompt.md"
+          git show "${AGENT_BRANCH}:.github/automation/r-sync-report.md" > "${REPORT_FILE}"
+          git show "${AGENT_BRANCH}:.github/automation/r-parity-porting-prompt.md" > "${PROMPT_FILE}"
+
+          FORK_OWNER="${{ github.repository_owner }}"
+          PR_BRANCH="automation/r-parity-${{ steps.monitor.outputs.latest_sha_short }}"
+
+          git fetch origin main
+          git checkout -B "${PR_BRANCH}" origin/main
+
+          mkdir -p .github/automation
+          cp "${REPORT_FILE}" .github/automation/r-sync-report.md
+          cp "${PROMPT_FILE}" .github/automation/r-parity-porting-prompt.md
+
+          git add .github/automation/r-sync-report.md .github/automation/r-parity-porting-prompt.md
+          if git diff --cached --quiet; then
+            echo "No upstream PR content changes detected."
+            exit 0
+          fi
+
+          git commit -m "chore: monitor dataRetrieval (R) updates (${{ steps.monitor.outputs.latest_sha_short }})"
+          git push --force origin "${PR_BRANCH}"
+
+          TITLE="chore: monitor dataRetrieval (R) updates (${{ steps.monitor.outputs.latest_sha_short }})"
+          existing_pr_number="$(gh pr list --repo "${TARGET_JULIA_REPO}" --state open --head "${FORK_OWNER}:${PR_BRANCH}" --json number --jq '.[0].number')"
+
+          if [[ -n "${existing_pr_number}" && "${existing_pr_number}" != "null" ]]; then
+            gh pr edit "${existing_pr_number}" --repo "${TARGET_JULIA_REPO}" --title "${TITLE}" --body-file .github/automation/r-sync-report.md
+            echo "Updated upstream PR #${existing_pr_number}"
+          else
+            gh pr create \
+              --repo "${TARGET_JULIA_REPO}" \
+              --base main \
+              --head "${FORK_OWNER}:${PR_BRANCH}" \
+              --title "${TITLE}" \
+              --body-file .github/automation/r-sync-report.md
+            echo "Created PR against ${TARGET_JULIA_REPO}:main"
+          fi
