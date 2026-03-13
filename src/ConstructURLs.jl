@@ -134,6 +134,7 @@ function _getbaseURL(service)
         ("qwdata", "https://nwis.waterdata.usgs.gov/nwis/qwdata"),
         ("stat", "https://waterservices.usgs.gov/nwis/stat/"),
         ("useNat", "https://waterdata.usgs.gov/nwis/water_use"),
+        # NOTE: pCode services are decommissioned and currently redirect to HTML help pages.
         ("pCode", "https://help.waterdata.usgs.gov/code/parameter_cd_query"),
         ("pCodeSingle", "https://help.waterdata.usgs.gov/code/parameter_cd_nm_query"),
         ("Result", "https://www.waterqualitydata.us/data/Result/search"),

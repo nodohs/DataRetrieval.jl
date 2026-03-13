@@ -288,6 +288,18 @@ R has additional functionality of being able to specify a timezone when
 data is that granular, could add this too.
 """
 function _readRDB(response)
+    # Check for HTML response (redirects or error pages)
+    content_type = HTTP.header(response, "Content-Type", "")
+    if occursin("text/html", content_type)
+        body_str = String(copy(response.body))
+        if occursin("help.waterdata.usgs.gov", body_str) ||
+           occursin("waterdata.usgs.gov/code-dictionary", body_str)
+            throw(ArgumentError("The requested NWIS service has been decommissioned or redirected to a web page. Please check the URL or use a newer API (e.g., WaterData)."))
+        else
+            throw(ArgumentError("Received an HTML response instead of RDB data. This typically indicates an error page or a redirect."))
+        end
+    end
+
     # read the response body into lines, ignoring comments
     # We use copy() because String() constructor can be destructive to the underlying vector.
     content = String(copy(response.body))
@@ -295,18 +307,19 @@ function _readRDB(response)
 
     # RDB files standardly have a header line followed by a definition line (e.g. 5s 15s)
     # If the file is too short, or doesn't look like RDB, we fall back to generic parsing.
-    if length(lines) >= 2 && occursin(r"^[0-9a-z\s\t]+$", lines[2])
+    # Definition lines typically look like 5s, 15s, 12n, etc.
+    if length(lines) >= 2 && occursin(r"^[0-9]+[sdnf](\t[0-9]+[sdnf])*$", lines[2])
         # RDB files standardly have a definition line after the header that must be skipped.
         # We force site_no and agency_cd to String to preserve leading zeros.
         df = DataFrame(CSV.File(response.body; comment="#", header=1, skipto=3, delim='\t',
                                 types=Dict(:site_no => String, :agency_cd => String),
-                                validate=false))
+                                validate=false, ignoreemptyrows=true))
     else
-        # Fallback for short or non-standard RDB returns (often errors/redirects)
-        # We still try to force types if columns exist.
-        df = DataFrame(CSV.File(response.body; comment="#",
+        # Fallback for short or non-standard RDB returns.
+        # Force tab delimiter for RDB-like services to avoid guessing errors.
+        df = DataFrame(CSV.File(response.body; comment="#", delim='\t',
                                 types=Dict(:site_no => String, :agency_cd => String),
-                                validate=false))
+                                validate=false, ignoreemptyrows=true))
     end
     if "datetime" in names(df)
         # filter based on date-time column

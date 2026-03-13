@@ -323,7 +323,11 @@ function _genericWQPcall(service, query_params; legacy=true, ssl_check=true)
     # do the GET request
     response = _custom_get(url, query_params=normalized_query, ssl_check=ssl_check)
     # parse the Response
-    df = DataFrame(CSV.File(response.body))
+    content_type = HTTP.header(response, "Content-Type", "")
+    if occursin("text/html", content_type)
+        throw(ArgumentError("Received an HTML response instead of CSV data from WQP. This typically indicates an error page or a service issue."))
+    end
+    df = DataFrame(CSV.File(response.body; comment="#", ignoreemptyrows=true))
     # return the data frame
     return df, response
 end

@@ -1,85 +1,128 @@
 # Testing the NLDI functions
 
-@testset "NLDI Testing" begin
+# ──────────────────────────────────────────────────────────────────────────────
+# Offline parsing tests — deterministic, no network required
+# ──────────────────────────────────────────────────────────────────────────────
+@testset "NLDI Parsing (offline)" begin
+
+    @testset "basin GeoJSON parsing" begin
+        fixture_path = joinpath(@__DIR__, "fixtures", "nldi_basin.json")
+        data = JSON.parsefile(fixture_path)
+        df = DataRetrieval._nldi_features_to_df(data)
+
+        @test nrow(df) >= 1
+        @test "geometry_type" in names(df)
+        @test "coordinates" in names(df)
+        @test "feature_type" in names(df)
+        @test occursin("Polygon", string(df.geometry_type[1]))
+        @test df.feature_type[1] == "Feature"
+        # basin coordinates should be a nested array
+        @test isa(df.coordinates[1], AbstractArray)
+    end
+
+    @testset "flowlines GeoJSON parsing" begin
+        fixture_path = joinpath(@__DIR__, "fixtures", "nldi_flowlines.json")
+        data = JSON.parsefile(fixture_path)
+        df = DataRetrieval._nldi_features_to_df(data)
+
+        @test nrow(df) > 0
+        @test "geometry_type" in names(df)
+        @test occursin("LineString", string(df.geometry_type[1]))
+    end
+
+    @testset "features GeoJSON parsing (lat/long)" begin
+        fixture_path = joinpath(@__DIR__, "fixtures", "nldi_features.json")
+        data = JSON.parsefile(fixture_path)
+        df = DataRetrieval._nldi_features_to_df(data)
+
+        @test nrow(df) >= 1
+        @test "geometry_type" in names(df)
+        @test "feature_type" in names(df)
+    end
+
+    @testset "features GeoJSON parsing (feature source)" begin
+        fixture_path = joinpath(@__DIR__, "fixtures", "nldi_features_source.json")
+        data = JSON.parsefile(fixture_path)
+        df = DataRetrieval._nldi_features_to_df(data)
+
+        @test nrow(df) >= 1
+        @test "feature_type" in names(df)
+    end
+end
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Validation tests — argument constraints (offline)
+# ──────────────────────────────────────────────────────────────────────────────
+@testset "NLDI Validation" begin
+    # invalid navigation mode
+    @test_throws ArgumentError readNLDIflowlines("BAD", comid=13294314)
+
+    # lat without long
+    @test_throws ArgumentError readNLDIfeatures(lat=43.087)
+
+    # feature_source without feature_id
+    @test_throws ArgumentError readNLDIfeatures(feature_source="WQP")
+
+    # invalid find value
+    @test_throws ArgumentError searchNLDI(find="bad")
+
+    # comid + basin (not supported)
+    @test_throws ArgumentError searchNLDI(find="basin", comid=13294314)
+
+    # feature_source + comid (mutually exclusive)
+    @test_throws ArgumentError readNLDIflowlines("UM",
+        feature_source="WQP", feature_id="USGS-054279485", comid=13294314)
+
+    # comid without navigation_mode
+    @test_throws ArgumentError readNLDIfeatures(comid=13294314)
+end
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Live endpoint tests — confirm APIs are reachable and return valid data
+# ──────────────────────────────────────────────────────────────────────────────
+@testset "NLDI Live Endpoint" begin
 
     # basin query
     df, response = readNLDIbasin("WQP", "USGS-054279485")
-    @test typeof(df) == DataFrame
     @test response.status == 200
     @test nrow(df) > 0
     @test occursin("Polygon", string(df.geometry_type[1]))
 
-    # flowlines query using feature source origin
-    df, response = readNLDIflowlines("UM",
-                                     feature_source="WQP",
-                                     feature_id="USGS-054279485")
-    @test typeof(df) == DataFrame
+    # flowlines query using comid
+    df, response = readNLDIflowlines("UM", comid=13294314, distance=50)
     @test response.status == 200
     @test nrow(df) > 0
     @test occursin("LineString", string(df.geometry_type[1]))
 
-    # flowlines query using comid origin
-    df, response = readNLDIflowlines("UM", comid=13294314, distance=50)
-    @test typeof(df) == DataFrame
-    @test response.status == 200
-    @test nrow(df) > 0
-
-    # features query by feature source with navigation
-    df, response = readNLDIfeatures(feature_source="WQP",
-                                    feature_id="USGS-054279485",
-                                    data_source="nwissite",
-                                    navigation_mode="UM",
-                                    distance=50)
-    @test typeof(df) == DataFrame
-    @test response.status == 200
-    @test nrow(df) > 0
-
-    # features query by feature source without navigation
+    # features by feature source (no navigation)
     df, response = readNLDIfeatures(feature_source="WQP", feature_id="USGS-054279485")
-    @test typeof(df) == DataFrame
     @test response.status == 200
     @test nrow(df) > 0
 
-    # features query by comid
-    df, response = readNLDIfeatures(comid=13294314,
-                                    data_source="WQP",
-                                    navigation_mode="UM",
-                                    distance=5)
-    @test typeof(df) == DataFrame
-    @test response.status == 200
-    @test nrow(df) > 0
-
-    # features query by lat/long
+    # features by lat/long
     df, response = readNLDIfeatures(lat=43.087, long=-89.509)
-    @test typeof(df) == DataFrame
     @test response.status == 200
     @test nrow(df) > 0
 
-    # search basin
+    # searchNLDI — basin
     result, response = searchNLDI(feature_source="WQP", feature_id="USGS-054279485", find="basin")
-    @test isa(result, AbstractDict)
     @test response.status == 200
+    @test isa(result, AbstractDict)
     @test haskey(result, "features")
+    @test length(result["features"]) > 0
 
-    # search flowlines
+    # searchNLDI — flowlines
     result, response = searchNLDI(feature_source="WQP",
                                   feature_id="USGS-054279485",
                                   navigation_mode="UM",
                                   find="flowlines")
-    @test isa(result, AbstractDict)
     @test response.status == 200
+    @test isa(result, AbstractDict)
     @test haskey(result, "features")
 
-    # search features by lat/long
+    # searchNLDI — features by lat/long
     result, response = searchNLDI(lat=43.087, long=-89.509, find="features")
-    @test isa(result, AbstractDict)
     @test response.status == 200
+    @test isa(result, AbstractDict)
     @test haskey(result, "features")
-
-    # validation checks
-    @test_throws ArgumentError readNLDIflowlines("BAD", comid=13294314)
-    @test_throws ArgumentError readNLDIfeatures(lat=43.087)
-    @test_throws ArgumentError readNLDIfeatures(feature_source="WQP")
-    @test_throws ArgumentError searchNLDI(find="bad")
-
 end

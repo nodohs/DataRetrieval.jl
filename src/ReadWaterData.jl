@@ -433,7 +433,11 @@ function readWaterDataSamples(;
 
     url      = string(_WATERDATA_BASE_URL, "/", svc, "/", prof)
     response = _custom_get(url; query_params=query_params, ssl_check=ssl_check)
-    df       = DataFrame(CSV.File(IOBuffer(response.body)))
+    content_type = HTTP.header(response, "Content-Type", "")
+    if occursin("text/html", content_type)
+        throw(ArgumentError("Received an HTML response instead of CSV data from WaterData. This typically indicates an error page or a service issue."))
+    end
+    df       = DataFrame(CSV.File(IOBuffer(response.body); comment="#", ignoreemptyrows=true))
     return df, response
 end
 

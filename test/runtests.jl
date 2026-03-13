@@ -2,6 +2,9 @@ using DataRetrieval
 using Test
 using HTTP
 using DataFrames
+using Dates
+using JSON
+using CSV
 
 @testset "All Tests" begin
     include("NWISURLtests.jl")
