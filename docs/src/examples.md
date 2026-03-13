@@ -96,9 +96,9 @@ we plot the discharge data, we can properly label the y-axis.
 ```@example 01646500
 # convert the date time column to a DateTime type
 using Dates
-timestamps = Dates.DateTime.(df.datetime, "yyy-mm-dd HH:MM");
-# convert the discharge values to a float type
-discharge = map(x->parse(Float64,x), df."69928_00060");
+timestamps = Dates.DateTime.(df.datetime, "yyyy-mm-dd HH:MM");
+# discharge values are already numeric thanks to improved RDB parsing
+discharge = df."69928_00060";
 # make the plot
 using Plots
 plot(timestamps, discharge,
@@ -142,9 +142,9 @@ Now when we plot the groundwater levels, we can properly label the y-axis.
 ```@example 393617075380403
 # convert the date time column to a DateTime type
 using Dates
-timestamps = Dates.DateTime.(df.datetime, "yyy-mm-dd HH:MM");
-# convert the groundwater level values to a float type
-gwlevels = parse.(Float64, df."276495_72019_00003");
+timestamps = Dates.DateTime.(df.datetime, "yyyy-mm-dd HH:MM");
+# groundwater level values are already numeric thanks to improved RDB parsing
+gwlevels = df."276495_72019_00003";
 # make the plot
 using Plots
 plot(timestamps, gwlevels,
