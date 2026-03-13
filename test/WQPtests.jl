@@ -53,13 +53,22 @@
     @test isa(response, HTTP.Messages.Response)
 
     # detection limits query
-    df, response = whatWQPdetectionLimits(statecode="US:38",
-                                          characteristicName="Nitrite",
-                                          startDateLo="07-01-2006",
-                                          startDateHi="07-01-2007")
-    @test typeof(df) == DataFrame
-    @test response.status == 200
-    @test isa(response, HTTP.Messages.Response)
+    try
+        df, response = whatWQPdetectionLimits(statecode="US:38",
+                                              characteristicName="Nitrite",
+                                              startDateLo="07-01-2006",
+                                              startDateHi="07-01-2007")
+        @test typeof(df) == DataFrame
+        @test response.status == 200
+        @test isa(response, HTTP.Messages.Response)
+    catch e
+        if e isa HTTP.Exceptions.StatusError && e.status == 500
+            @warn "WQP ResultDetectionQuantitationLimit service returned 500. Skipping test due to upstream instability."
+            @test_skip e.status == 200
+        else
+            rethrow(e)
+        end
+    end
 
     # habitat metrics query
     df, response = whatWQPhabitatMetrics(statecode="US:38")
