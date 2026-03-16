@@ -11,7 +11,7 @@ function _mock_response(fixture_name; content_type="text/plain")
     return response
 end
 
-include("TestUtils.jl")
+isdefined(Main, :_try_live) || include("test_utils.jl")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Offline parsing tests — deterministic, no network required
@@ -20,7 +20,7 @@ include("TestUtils.jl")
 
     @testset "single parameter daily values" begin
         response = _mock_response("nwis_dv_single.rdb")
-        df = DataRetrieval._readRDB(response)
+        df = NWIS._read_rdb(response)
 
         # dimensions
         @test nrow(df) == 31
@@ -58,7 +58,7 @@ include("TestUtils.jl")
 
     @testset "multiple parameter daily values" begin
         response = _mock_response("nwis_dv_multi.rdb")
-        df = DataRetrieval._readRDB(response)
+        df = NWIS._read_rdb(response)
 
         # dimensions
         @test nrow(df) == 31
@@ -79,7 +79,7 @@ include("TestUtils.jl")
 
     @testset "site info" begin
         response = _mock_response("nwis_site.rdb")
-        df = DataRetrieval._readRDB(response)
+        df = NWIS._read_rdb(response)
 
         @test nrow(df) == 1
         @test "agency_cd" in names(df)
@@ -94,7 +94,7 @@ include("TestUtils.jl")
 
     @testset "instantaneous/unit values" begin
         response = _mock_response("nwis_uv.rdb")
-        df = DataRetrieval._readRDB(response)
+        df = NWIS._read_rdb(response)
 
         @test nrow(df) > 0
         @test "agency_cd" in names(df)
@@ -116,7 +116,7 @@ include("TestUtils.jl")
         </body></html>
         """)
         HTTP.setheader(response, "Content-Type" => "text/html")
-        @test_throws ArgumentError DataRetrieval._readRDB(response)
+        @test_throws ArgumentError NWIS._read_rdb(response)
     end
 
 end
@@ -129,7 +129,7 @@ end
     @testset "daily values round-trip" begin
         obs_url = "https://waterservices.usgs.gov/nwis/dv/?site=02177000&format=rdb,1.0&ParameterCd=00060&StatCd=00003&startDT=2012-09-01&endDT=2012-10-01"
         df, response = _try_live(service_name="NWIS") do
-            readNWIS(obs_url)
+            NWIS.read(obs_url)
         end
         if df !== nothing
             @test response.status == 200

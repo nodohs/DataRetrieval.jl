@@ -1,7 +1,7 @@
 # Testing the WaterData (USGS Samples) API functions
 
 # Helper: run a live WaterData test, skipping gracefully on connectivity or 429 errors.
-include("TestUtils.jl")
+isdefined(Main, :_try_live) || include("test_utils.jl")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Offline parsing tests — deterministic, no network required
@@ -11,7 +11,7 @@ include("TestUtils.jl")
     @testset "OGC JSON flattening (daily)" begin
         fixture_path = joinpath(@__DIR__, "fixtures", "waterdata_daily.json")
         parsed = JSON.parsefile(fixture_path)
-        df = DataRetrieval._waterdata_flatten_ogc_features(parsed)
+        df = WaterData._flatten_ogc_features(parsed)
 
         @test nrow(df) == 3
         @test "monitoring_location_id" in string.(names(df))
@@ -30,13 +30,13 @@ include("TestUtils.jl")
     @testset "OGC rename/cast pipeline" begin
         fixture_path = joinpath(@__DIR__, "fixtures", "waterdata_daily.json")
         parsed = JSON.parsefile(fixture_path)
-        df = DataRetrieval._waterdata_flatten_ogc_features(parsed)
-        DataRetrieval._waterdata_rename_id!(df, "daily_id")
+        df = WaterData._flatten_ogc_features(parsed)
+        WaterData._rename_id!(df, "daily_id")
 
         @test "daily_id" in string.(names(df))
         @test !("id" in string.(names(df)))
 
-        DataRetrieval._waterdata_cast_columns!(df)
+        WaterData._cast_columns!(df)
         # value column should be numeric after casting
         @test isa(df[1, :value], Union{Nothing, Float64})
     end
@@ -55,38 +55,38 @@ include("TestUtils.jl")
     end
 
     @testset "Validation checks" begin
-        @test_throws ArgumentError readWaterDataSamples(service="foo", profile="bar")
-        @test_throws ArgumentError readWaterDataSamples(service="results", profile="foo")
-        @test_throws ArgumentError readWaterDataCodes("invalid_service")
-        @test_throws ArgumentError readWaterDataReferenceTable("agency-cod")
+        @test_throws ArgumentError WaterData.samples(service="foo", profile="bar")
+        @test_throws ArgumentError WaterData.samples(service="results", profile="foo")
+        @test_throws ArgumentError WaterData.codes("invalid_service")
+        @test_throws ArgumentError WaterData.reference_table("agency-cod")
     end
 
     @testset "OGC query parameter mapping (parity with R)" begin
         # monitoring_location_id maps to id consistently
-        params, nopage = DataRetrieval._waterdata_prepare_ogc_query(Dict(:monitoring_location_id => "USGS-05427718"), "monitoring-locations")
+        params, nopage = WaterData._prepare_ogc_query(Dict(:monitoring_location_id => "USGS-05427718"), "monitoring-locations")
         @test params["id"] == "USGS-05427718"
         @test !haskey(params, "monitoring_location_number")
 
-        params, nopage = DataRetrieval._waterdata_prepare_ogc_query(Dict(:monitoring_location_id => "05427718"), "monitoring-locations")
+        params, nopage = WaterData._prepare_ogc_query(Dict(:monitoring_location_id => "05427718"), "monitoring-locations")
         @test params["id"] == "05427718"
 
         # monitoring_location_id should NOT map to 'id' for data services (like daily)
-        params, nopage = DataRetrieval._waterdata_prepare_ogc_query(Dict(:monitoring_location_id => "USGS-05427718"), "daily")
+        params, nopage = WaterData._prepare_ogc_query(Dict(:monitoring_location_id => "USGS-05427718"), "daily")
         @test params["monitoring_location_id"] == "USGS-05427718"
         @test !haskey(params, "id")
 
         # service-specific ID maps to 'id'
-        params, nopage = DataRetrieval._waterdata_prepare_ogc_query(Dict(:daily_id => "abc"), "daily")
+        params, nopage = WaterData._prepare_ogc_query(Dict(:daily_id => "abc"), "daily")
         @test params["id"] == "abc"
 
         # properties strip 'id'
-        params, nopage = DataRetrieval._waterdata_prepare_ogc_query(Dict(:properties => ["id", "state_name"]), "monitoring-locations")
+        params, nopage = WaterData._prepare_ogc_query(Dict(:properties => ["id", "state_name"]), "monitoring-locations")
         @test params["properties"] == "state_name"
 
-        params, nopage = DataRetrieval._waterdata_prepare_ogc_query(Dict(:properties => ["monitoring_location_id", "state_name"]), "monitoring-locations")
+        params, nopage = WaterData._prepare_ogc_query(Dict(:properties => ["monitoring_location_id", "state_name"]), "monitoring-locations")
         @test params["properties"] == "state_name"
 
-        params, nopage = DataRetrieval._waterdata_prepare_ogc_query(Dict(:properties => ["id"]), "monitoring-locations")
+        params, nopage = WaterData._prepare_ogc_query(Dict(:properties => ["id"]), "monitoring-locations")
         @test params["properties"] == "id"
     end
 end
@@ -96,7 +96,7 @@ end
 # ──────────────────────────────────────────────────────────────────────────────
 @testset "WaterData OGC Live" begin
     df, response = _try_live(service_name="WaterData") do
-        getWaterDataOGCParams("daily")
+        WaterData.ogc_params("daily")
     end
     if df !== nothing
         @test response.status == 200
@@ -104,7 +104,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        checkWaterDataOGCRequests(endpoint="daily", request_type="queryables")
+        WaterData.ogc_requests(endpoint="daily", request_type="queryables")
     end
     if df !== nothing
         @test response.status == 200
@@ -112,7 +112,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterData("daily",
+        WaterData.data("daily",
             monitoring_location_id="USGS-05427718",
             parameter_code="00060",
             time="2025-01-01/2025-01-07",
@@ -128,7 +128,7 @@ end
 
 @testset "WaterData Codes Live" begin
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataCodes("states")
+        WaterData.codes("states")
     end
     if df !== nothing
         @test response.status == 200
@@ -136,7 +136,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataCodes("characteristicgroup")
+        WaterData.codes("characteristicgroup")
     end
     if df !== nothing
         @test response.status == 200
@@ -146,11 +146,11 @@ end
 
 @testset "WaterData Samples Live" begin
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataResults(
+        WaterData.results(
             profile="narrow",
-            monitoringLocationIdentifier="USGS-05288705",
-            activityStartDateLower="2024-10-01",
-            activityStartDateUpper="2025-04-24")
+            monitoring_location_identifier="USGS-05288705",
+            activity_start_date_lower="2024-10-01",
+            activity_start_date_upper="2025-04-24")
     end
     if df !== nothing
         @test response.status == 200
@@ -160,11 +160,11 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        whatWaterDataLocations(
-            stateFips="US:55",
-            usgsPCode="00010",
-            activityStartDateLower="2024-10-01",
-            activityStartDateUpper="2025-04-24")
+        WaterData.locations(
+            state_fips="US:55",
+            usgs_p_code="00010",
+            activity_start_date_lower="2024-10-01",
+            activity_start_date_upper="2025-04-24")
     end
     if df !== nothing
         @test response.status == 200
@@ -174,8 +174,8 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        whatWaterDataActivities(
-            monitoringLocationIdentifier="USGS-06719505")
+        WaterData.activities(
+            monitoring_location_identifier="USGS-06719505")
     end
     if df !== nothing
         @test response.status == 200
@@ -183,10 +183,10 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        whatWaterDataProjects(
-            stateFips="US:15",
-            activityStartDateLower="2024-10-01",
-            activityStartDateUpper="2025-04-24")
+        WaterData.projects(
+            state_fips="US:15",
+            activity_start_date_lower="2024-10-01",
+            activity_start_date_upper="2025-04-24")
     end
     if df !== nothing
         @test response.status == 200
@@ -195,9 +195,9 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        whatWaterDataOrganizations(
+        WaterData.organizations(
             profile="count",
-            stateFips="US:01")
+            state_fips="US:01")
     end
     if df !== nothing
         @test response.status == 200
@@ -205,11 +205,11 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataSamples(
+        WaterData.samples(
             service="locations",
             profile="count",
-            boundingBox=[-89.65, 43.06, -89.33, 43.18],
-            stateFips="US:55")
+            bounding_box=[-89.65, 43.06, -89.33, 43.18],
+            state_fips="US:55")
     end
     if df !== nothing
         @test response.status == 200
@@ -219,7 +219,7 @@ end
 
 @testset "WaterData OGC Convenience Live" begin
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataDaily(
+        WaterData.daily(
             monitoring_location_id="USGS-05427718",
             parameter_code="00060",
             time="2025-01-01/2025-01-07",
@@ -231,7 +231,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataContinuous(
+        WaterData.continuous(
             monitoring_location_id="USGS-06904500",
             parameter_code="00065",
             time="2025-01-01/2025-01-03",
@@ -243,7 +243,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        whatWaterDataMonitoringLocations(
+        WaterData.monitoring_locations(
             state_name="Connecticut",
             site_type_code="GW",
             limit=500)
@@ -254,7 +254,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataLatestContinuous(
+        WaterData.latest_continuous(
             monitoring_location_id=["USGS-05427718", "USGS-05427719"],
             parameter_code=["00060", "00065"],
             limit=200)
@@ -265,7 +265,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataLatestDaily(
+        WaterData.latest_daily(
             monitoring_location_id=["USGS-05427718", "USGS-05427719"],
             parameter_code=["00060", "00065"],
             limit=200)
@@ -276,7 +276,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataFieldMeasurements(
+        WaterData.field_measurements(
             monitoring_location_id="USGS-05427718",
             unit_of_measure="ft^3/s",
             time="2025-01-01/2025-10-01",
@@ -289,7 +289,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataChannelMeasurements(
+        WaterData.channel_measurements(
             monitoring_location_id="USGS-02238500",
             limit=200,
             skip_geometry=true)
@@ -299,7 +299,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataFieldMetadata(
+        WaterData.field_metadata(
             monitoring_location_id="USGS-02238500",
             limit=200,
             skip_geometry=true)
@@ -309,7 +309,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataCombinedMetadata(
+        WaterData.combined_metadata(
             monitoring_location_id="USGS-05407000",
             limit=200,
             skip_geometry=true)
@@ -319,7 +319,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataTimeSeriesMetadata(
+        WaterData.series_metadata(
             bbox=[-89.840355, 42.853411, -88.818626, 43.422598],
             parameter_code=["00060", "00065", "72019"],
             skip_geometry=true,
@@ -333,7 +333,7 @@ end
 
 @testset "WaterData Reference Tables Live" begin
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataReferenceTable("agency-codes")
+        WaterData.reference_table("agency-codes")
     end
     if df !== nothing
         @test response.status == 200
@@ -341,8 +341,8 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataReferenceTable("agency-codes";
-                                    query=Dict("id" => "AK001,AK008", "limit" => "20"))
+        WaterData.reference_table("agency-codes";
+                                     query=Dict("id" => "AK001,AK008", "limit" => "20"))
     end
     if df !== nothing
         @test response.status == 200
@@ -352,7 +352,7 @@ end
 
 @testset "WaterData Stats Live" begin
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataStatsPOR(
+        WaterData.stats_por(
             monitoring_location_id="USGS-12451000",
             parameter_code="00060",
             start_date="01-01",
@@ -364,7 +364,7 @@ end
     end
 
     df, response = _try_live(service_name="WaterData") do
-        readWaterDataStatsDateRange(
+        WaterData.stats_date_range(
             monitoring_location_id="USGS-12451000",
             parameter_code="00060",
             start_date="2025-01-01",

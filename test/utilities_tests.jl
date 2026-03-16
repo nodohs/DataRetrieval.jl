@@ -1,5 +1,5 @@
 # Testing utilities functions
-include("TestUtils.jl")
+isdefined(Main, :_try_live) || include("test_utils.jl")
 
 @testset "Utilities Testing" begin
 
@@ -17,7 +17,7 @@ include("TestUtils.jl")
     end
 
     # with query params
-    url = constructWQPURL("ActivityMetric");
+    url = WQP.url("ActivityMetric");
     query_params = Dict("statecode"=>"US:38",
                         "startDateLo"=>"07-01-2006",
                         "startDateHi"=>"07-01-2007");
@@ -35,7 +35,7 @@ include("TestUtils.jl")
     try
         # --- Case 1: no token at all ---
         pop!(ENV, "API_USGS_PAT", nothing)
-        clearUSGSAPIToken!()
+        clear_token!()
         headers_none = Dict(DataRetrieval._default_headers())
         @test get(headers_none, "X-Api-Key", nothing) === nothing
         @test haskey(headers_none, "user-agent")
@@ -46,16 +46,16 @@ include("TestUtils.jl")
         @test get(headers_env, "X-Api-Key", nothing) == "env-token"
 
         # --- Case 3: runtime override takes priority ---
-        setUSGSAPIToken!("runtime-token")
+        set_token!("runtime-token")
         headers_runtime = Dict(DataRetrieval._default_headers())
         @test get(headers_runtime, "X-Api-Key", nothing) == "runtime-token"
 
         # --- Case 4: clear runtime, fall back to ENV ---
-        clearUSGSAPIToken!()
+        clear_token!()
         headers_cleared = Dict(DataRetrieval._default_headers())
         @test get(headers_cleared, "X-Api-Key", nothing) == "env-token"
     finally
-        clearUSGSAPIToken!()
+        clear_token!()
         if previous_env === nothing
             pop!(ENV, "API_USGS_PAT", nothing)
         else

@@ -1,6 +1,10 @@
+using DataRetrieval
 using HTTP
 using Test
 using DataFrames
+using JSON
+using CSV
+using Dates
 
 # Helper: run a live test, skipping gracefully on connectivity or upstream errors.
 function _try_live(f; service_name="Upstream")

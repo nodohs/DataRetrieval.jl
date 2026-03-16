@@ -1,5 +1,5 @@
 # Testing the WQP functions
-include("TestUtils.jl")
+isdefined(Main, :_try_live) || include("test_utils.jl")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Offline parsing tests — deterministic, no network required
@@ -34,16 +34,16 @@ include("TestUtils.jl")
 
     @testset "URL construction" begin
         # Legacy URL
-        @test constructWQPURL("Result") == "https://www.waterqualitydata.us/data/Result/search?"
+        @test WQP.url("Result") == "https://www.waterqualitydata.us/data/Result/search?"
         # WQX3 URL
-        @test constructWQPURL("Result"; legacy=false) == "https://www.waterqualitydata.us/wqx3/Result/search?"
+        @test WQP.url("Result"; legacy=false) == "https://www.waterqualitydata.us/wqx3/Result/search?"
         # Service not in WQX3 falls back to legacy
-        @test constructWQPURL("Organization"; legacy=false) == "https://www.waterqualitydata.us/data/Organization/search?"
+        @test WQP.url("Organization"; legacy=false) == "https://www.waterqualitydata.us/data/Organization/search?"
     end
 
     @testset "mimeType validation" begin
-        @test_throws ArgumentError DataRetrieval._genericWQPcall("Result", Dict("mimeType" => "geojson"))
-        @test_throws ArgumentError DataRetrieval._genericWQPcall("Result", Dict("mimeType" => "xml"))
+        @test_throws ArgumentError WQP._generic_call("Result", Dict("mimeType" => "geojson"))
+        @test_throws ArgumentError WQP._generic_call("Result", Dict("mimeType" => "xml"))
     end
 end
 
@@ -54,7 +54,7 @@ end
 
     # results query — small radial search
     df, response = _try_live(service_name="WQP") do
-        readWQPresults(lat="44.2", long="-88.9", within="0.5")
+        WQP.results(lat="44.2", long="-88.9", within="0.5")
     end
     if df !== nothing && nrow(df) > 0
         @test response.status == 200
@@ -68,7 +68,7 @@ end
 
     # sites query — confirm returns data with expected columns
     df, response = _try_live(service_name="WQP") do
-        whatWQPsites(lat="44.2", long="-88.9", within="2.5")
+        WQP.sites(lat="44.2", long="-88.9", within="2.5")
     end
     if df !== nothing && nrow(df) > 0
         @test response.status == 200
@@ -81,9 +81,9 @@ end
 
     # generic data function
     df, response = _try_live(service_name="WQP") do
-        readWQPdata("ActivityMetric", statecode="US:38",
-                    startDateLo="07-01-2006",
-                    startDateHi="07-01-2007")
+        WQP.data("ActivityMetric", state_code="US:38",
+                    start_date_lo="07-01-2006",
+                    start_date_hi="07-01-2007")
     end
     if df !== nothing && nrow(df) > 0
         @test response.status == 200
@@ -92,7 +92,7 @@ end
 
     # organizations query
     df, response = _try_live(service_name="WQP") do
-        whatWQPorganizations(lat="44.2", long="-88.9", within="2.5")
+        WQP.organizations(lat="44.2", long="-88.9", within="2.5")
     end
     if df !== nothing && nrow(df) > 0
         @test response.status == 200
@@ -102,7 +102,7 @@ end
 
     # projects query
     df, response = _try_live(service_name="WQP") do
-        whatWQPprojects(lat="44.2", long="-88.9", within="2.5")
+        WQP.projects(lat="44.2", long="-88.9", within="2.5")
     end
     if df !== nothing && nrow(df) > 0
         @test response.status == 200
@@ -111,7 +111,7 @@ end
 
     # activities query
     df, response = _try_live(service_name="WQP") do
-        whatWQPactivities(lat="44.2", long="-88.9", within="2.5")
+        WQP.activities(lat="44.2", long="-88.9", within="2.5")
     end
     if df !== nothing && nrow(df) > 0
         @test response.status == 200
@@ -120,7 +120,7 @@ end
 
     # detection limits query
     df, response = _try_live(service_name="WQP") do
-        whatWQPdetectionLimits(siteid="USGS-01594440")
+        WQP.detection_limits(site_id="USGS-01594440")
     end
     if df !== nothing && nrow(df) > 0
         @test response.status == 200
@@ -129,7 +129,7 @@ end
 
     # habitat metrics query
     df, response = _try_live(service_name="WQP") do
-        whatWQPhabitatMetrics(statecode="US:38")
+        WQP.habitat_metrics(state_code="US:38")
     end
     if df !== nothing && nrow(df) > 0
         @test response.status == 200
@@ -138,9 +138,9 @@ end
 
     # project weights query
     df, response = _try_live(service_name="WQP") do
-        whatWQPprojectWeights(statecode="US:38",
-                              startDateLo="01-01-2006",
-                              startDateHi="01-01-2007")
+        WQP.project_weights(state_code="US:38",
+                               start_date_lo="01-01-2006",
+                               start_date_hi="01-01-2007")
     end
     if df !== nothing && nrow(df) > 0
         @test response.status == 200
@@ -151,9 +151,9 @@ end
 
     # activity metrics query
     df, response = _try_live(service_name="WQP") do
-        whatWQPactivityMetrics(statecode="US:38",
-                               startDateLo="07-01-2006",
-                               startDateHi="07-01-2007")
+        WQP.activity_metrics(state_code="US:38",
+                                start_date_lo="07-01-2006",
+                                start_date_hi="07-01-2007")
     end
     if df !== nothing && nrow(df) > 0
         @test response.status == 200

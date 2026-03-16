@@ -1,5 +1,5 @@
 # Testing the NLDI functions
-include("TestUtils.jl")
+isdefined(Main, :_try_live) || include("test_utils.jl")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Offline parsing tests — deterministic, no network required
@@ -9,7 +9,7 @@ include("TestUtils.jl")
     @testset "basin GeoJSON parsing" begin
         fixture_path = joinpath(@__DIR__, "fixtures", "nldi_basin.json")
         data = JSON.parsefile(fixture_path)
-        df = DataRetrieval._nldi_features_to_df(data)
+        df = NLDI._features_to_df(data)
 
         @test nrow(df) >= 1
         @test "geometry_type" in names(df)
@@ -24,7 +24,7 @@ include("TestUtils.jl")
     @testset "flowlines GeoJSON parsing" begin
         fixture_path = joinpath(@__DIR__, "fixtures", "nldi_flowlines.json")
         data = JSON.parsefile(fixture_path)
-        df = DataRetrieval._nldi_features_to_df(data)
+        df = NLDI._features_to_df(data)
 
         @test nrow(df) > 0
         @test "geometry_type" in names(df)
@@ -34,7 +34,7 @@ include("TestUtils.jl")
     @testset "features GeoJSON parsing (lat/long)" begin
         fixture_path = joinpath(@__DIR__, "fixtures", "nldi_features.json")
         data = JSON.parsefile(fixture_path)
-        df = DataRetrieval._nldi_features_to_df(data)
+        df = NLDI._features_to_df(data)
 
         @test nrow(df) >= 1
         @test "geometry_type" in names(df)
@@ -44,7 +44,7 @@ include("TestUtils.jl")
     @testset "features GeoJSON parsing (feature source)" begin
         fixture_path = joinpath(@__DIR__, "fixtures", "nldi_features_source.json")
         data = JSON.parsefile(fixture_path)
-        df = DataRetrieval._nldi_features_to_df(data)
+        df = NLDI._features_to_df(data)
 
         @test nrow(df) >= 1
         @test "feature_type" in names(df)
@@ -56,26 +56,26 @@ end
 # ──────────────────────────────────────────────────────────────────────────────
 @testset "NLDI Validation" begin
     # invalid navigation mode
-    @test_throws ArgumentError readNLDIflowlines("BAD", comid=13294314)
+    @test_throws ArgumentError NLDI.flowlines("BAD", comid=13294314)
 
     # lat without long
-    @test_throws ArgumentError readNLDIfeatures(lat=43.087)
+    @test_throws ArgumentError NLDI.features(lat=43.087)
 
     # feature_source without feature_id
-    @test_throws ArgumentError readNLDIfeatures(feature_source="WQP")
+    @test_throws ArgumentError NLDI.features(feature_source="WQP")
 
     # invalid find value
-    @test_throws ArgumentError searchNLDI(find="bad")
+    @test_throws ArgumentError NLDI.search(find="bad")
 
     # comid + basin (not supported)
-    @test_throws ArgumentError searchNLDI(find="basin", comid=13294314)
+    @test_throws ArgumentError NLDI.search(find="basin", comid=13294314)
 
     # feature_source + comid (mutually exclusive)
-    @test_throws ArgumentError readNLDIflowlines("UM",
+    @test_throws ArgumentError NLDI.flowlines("UM",
         feature_source="WQP", feature_id="USGS-054279485", comid=13294314)
 
     # comid without navigation_mode
-    @test_throws ArgumentError readNLDIfeatures(comid=13294314)
+    @test_throws ArgumentError NLDI.features(comid=13294314)
 end
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ end
 
     # basin query
     df, response = _try_live(service_name="NLDI") do
-        readNLDIbasin("WQP", "USGS-054279485")
+        NLDI.basin("WQP", "USGS-054279485")
     end
     if df !== nothing
         @test response.status == 200
@@ -95,7 +95,7 @@ end
 
     # flowlines query using comid
     df, response = _try_live(service_name="NLDI") do
-        readNLDIflowlines("UM", comid=13294314, distance=50)
+        NLDI.flowlines("UM", comid=13294314, distance=50)
     end
     if df !== nothing
         @test response.status == 200
@@ -105,7 +105,7 @@ end
 
     # features by feature source (no navigation)
     df, response = _try_live(service_name="NLDI") do
-        readNLDIfeatures(feature_source="WQP", feature_id="USGS-054279485")
+        NLDI.features(feature_source="WQP", feature_id="USGS-054279485")
     end
     if df !== nothing
         @test response.status == 200
@@ -114,7 +114,7 @@ end
 
     # features by lat/long
     df, response = _try_live(service_name="NLDI") do
-        readNLDIfeatures(lat=43.087, long=-89.509)
+        NLDI.features(lat=43.087, long=-89.509)
     end
     if df !== nothing
         @test response.status == 200
@@ -123,7 +123,7 @@ end
 
     # searchNLDI — basin
     result, response = _try_live(service_name="NLDI") do
-        searchNLDI(feature_source="WQP", feature_id="USGS-054279485", find="basin")
+        NLDI.search(feature_source="WQP", feature_id="USGS-054279485", find="basin", as_json=true)
     end
     if result !== nothing
         @test response.status == 200
@@ -134,10 +134,11 @@ end
 
     # searchNLDI — flowlines
     result, response = _try_live(service_name="NLDI") do
-        searchNLDI(feature_source="WQP",
+        NLDI.search(feature_source="WQP",
                                   feature_id="USGS-054279485",
                                   navigation_mode="UM",
-                                  find="flowlines")
+                                  find="flowlines",
+                                  as_json=true)
     end
     if result !== nothing
         @test response.status == 200
@@ -147,7 +148,7 @@ end
 
     # searchNLDI — features by lat/long
     result, response = _try_live(service_name="NLDI") do
-        searchNLDI(lat=43.087, long=-89.509, find="features")
+        NLDI.search(lat=43.087, long=-89.509, find="features", as_json=true)
     end
     if result !== nothing
         @test response.status == 200
